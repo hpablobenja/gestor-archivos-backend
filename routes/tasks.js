@@ -24,11 +24,33 @@ router.post("/", authMiddleware, async (req, res) => {
 
 // Obtener todas las tareas del usuario
 router.get("/", authMiddleware, async (req, res) => {
+    const { status, search, startDate, endDate } = req.query;
+
     try {
-        const tasks = await Task.find({ user: req.user.id });
+        let query = { user: req.user.id }; // Filtro por usuario autenticado
+
+        // Filtrar por estado (pendiente, en progreso, completada)
+        if (status) {
+            query.status = status;
+        }
+
+        // Buscar por palabra clave en el título o descripción
+        if (search) {
+            query.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } },
+            ];
+        }
+
+        // Filtrar por rango de fechas (fecha límite)
+        if (startDate && endDate) {
+            query.dueDate = { $gte: new Date(startDate), $lte: new Date(endDate) };
+        }
+
+        const tasks = await Task.find(query);
         res.status(200).json({ tasks });
     } catch (err) {
-        res.status(400).json({ error: err.message });
+        res.status(400).json({ error: "Error al obtener las tareas. Intenta nuevamente." });
     }
 });
 
@@ -87,3 +109,5 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
+
